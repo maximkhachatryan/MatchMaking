@@ -1,5 +1,6 @@
 using System.Reflection.Metadata;
 using Confluent.Kafka;
+using MatchMaking.Common.Constants;
 
 namespace MatchMaking.Worker.Consumers;
 
@@ -18,7 +19,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
         };
 
         using var consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-        consumer.Subscribe(Constants.KafkaRequestTopic);
+        consumer.Subscribe(KafkaTopics.KafkaRequestTopic);
 
         try
         {
