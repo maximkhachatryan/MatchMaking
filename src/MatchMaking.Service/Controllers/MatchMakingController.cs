@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Confluent.Kafka;
 using MatchMaking.Common.Constants;
-using MatchMaking.Service.Models;
+using MatchMaking.Common.Messages;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 
@@ -25,13 +25,15 @@ public class MatchMakingController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(userId))
             return BadRequest("userId is required.");
+        
+        //TODO: Check if user is waiting for a match, don't allow for a new request
 
-        var messagePayload = JsonSerializer.Serialize(new { UserId = userId });
+        var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
 
         try
         {
             var message = new Message<Null, string> { Value = messagePayload };
-            _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
+            await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
             return Ok(new { Status = "Message sent"});
         }
         catch (Exception ex)
