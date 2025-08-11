@@ -8,12 +8,11 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var kafkaConnString = configuration["Kafka:ConnectionString"]!;
-        Console.WriteLine($"Using kafka connection string: {kafkaConnString}");
+        var bootstrapServers = configuration["Kafka:BootstrapServers"]!;
         
         var config = new ConsumerConfig
         {
-            BootstrapServers = kafkaConnString,
+            BootstrapServers = bootstrapServers,
             GroupId = "matchmaking-worker-group",
             AutoOffsetReset = AutoOffsetReset.Earliest
         };

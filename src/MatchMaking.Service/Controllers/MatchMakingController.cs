@@ -11,12 +11,12 @@ namespace MatchMaking.Service.Controllers;
 [Route("matchmaking")]
 public class MatchMakingController : ControllerBase
 {
-    private readonly IDatabase _redisDb;
+    //private readonly IDatabase _redisDb;
     private readonly IProducer<Null, string> _kafkaProducer;
 
-    public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer)
+    public MatchMakingController(/*IConnectionMultiplexer redis,*/ IProducer<Null, string> kafkaProducer)
     {
-        _redisDb = redis.GetDatabase();
+        //_redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
     }
 
@@ -31,7 +31,7 @@ public class MatchMakingController : ControllerBase
         try
         {
             var message = new Message<Null, string> { Value = messagePayload };
-            await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
+            _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
             return Ok(new { Status = "Message sent"});
         }
         catch (Exception ex)
