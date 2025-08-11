@@ -34,7 +34,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
                     while (true)
                     {
                         //Used Lua script to check count and pop n items in atomic way
-                        var matchUsersCount = configuration.GetValue<int>("MatchUsersCount");
+                        var matchUsersCount = configuration.GetValue<int>("MatchSize");
                         var res = await db.ScriptEvaluateAsync(
                             LuaScripts.LPopNItemsIfExist,
                             keys: [Constants.Constants.RedisKeyWaitingUsers],
