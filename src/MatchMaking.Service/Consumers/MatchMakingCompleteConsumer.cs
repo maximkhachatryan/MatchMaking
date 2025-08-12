@@ -35,16 +35,18 @@ public class MatchMakingCompleteConsumer(
                     var db = redis.GetDatabase();
                     var hashEntries = message.UserIds.Select(uid => new HashEntry(uid, message.MatchId)).ToArray();
                     await db.HashSetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, hashEntries);
-
                     var matchUsersKey = string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, message.MatchId);
-
                     var redisUserIds = message.UserIds.Select(u => (RedisValue)u).ToArray();
                     await db.ListRightPushAsync(matchUsersKey, redisUserIds);
                     await db.SetRemoveAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, redisUserIds);
                 }
                 catch (ConsumeException ex)
                 {
-                    Console.WriteLine($"Kafka error: {ex.Error.Reason}");
+                    logger.LogError(ex, "Kafka consume error: {Reason}", ex.Error.Reason);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error processing match complete message.");
                 }
             }
         }

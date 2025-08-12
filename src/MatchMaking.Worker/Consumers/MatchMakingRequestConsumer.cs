@@ -71,16 +71,16 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                 {
                     logger.LogError(ex, $"Kafka error: {ex.Error}");
                 }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error processing match complete message.");
+                }
             }
         }
         catch (OperationCanceledException)
         {
             logger.LogInformation("MatchMakingRequestConsumer is stopping.");
             matchRequestConsumer.Close();
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Error occured");
         }
     }
 
