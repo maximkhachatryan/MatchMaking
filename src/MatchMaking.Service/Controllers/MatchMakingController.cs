@@ -25,8 +25,11 @@ public class MatchMakingController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(userId))
             return BadRequest("userId is required.");
-        
-        //TODO: Check if user is waiting for a match, don't allow for a new request
+
+        var isWaiting = await _redisDb.SetContainsAsync("waiting:users", userId);
+        if (isWaiting)
+            return BadRequest("User has already sent a request and waiting for a match");
+
 
         var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
 
@@ -34,17 +37,17 @@ public class MatchMakingController : ControllerBase
         {
             var message = new Message<Null, string> { Value = messagePayload };
             await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
-            
+
             await _redisDb.SetAddAsync("waiting:users", userId);
 
-            return Ok(new { Status = "Message sent"});
+            return NoContent();
         }
         catch (Exception ex)
         {
             return StatusCode(500, $"Error sending message: {ex.Message}");
         }
     }
-    
+
     [HttpGet("matchinfo/userId/{userId}")]
     public async Task<IActionResult> RetrieveMatchInformation([FromRoute] string userId)
     {
