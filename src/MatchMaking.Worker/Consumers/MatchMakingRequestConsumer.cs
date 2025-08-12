@@ -1,0 +1,113 @@
+using Confluent.Kafka;
+using MatchMaking.Common.Constants;
+using MatchMaking.Common.Messages;
+using MatchMaking.Common.Serialization;
+using MatchMaking.Worker.Constants;
+using StackExchange.Redis;
+
+namespace MatchMaking.Worker.Consumers;
+
+public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<MatchMakingRequestConsumer> logger)
+    : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        using var matchRequestConsumer = SubscribeConsumer(configuration);
+        using var matchCompleteProducer = CreateProducer(configuration);
+        try
+        {
+            var redisConnString = configuration["Redis:ConnectionString"]!;
+            var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    var consumerResult = matchRequestConsumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (consumerResult == null)
+                    {
+                        await Task.Delay(50, stoppingToken);
+                        continue;
+                    }
+
+                    var message = consumerResult.Message.Value;
+                    logger.LogInformation($"Received message with userId: {message.UserId}");
+
+                    var db = redis.GetDatabase();
+                    await db.ListRightPushAsync(MatchMakingWorkerRedisKeys.WaitingRequests, message.UserId);
+
+
+                    while (true)
+                    {
+                        //Used Lua script to check count and pop n items in atomic way
+                        var matchUsersCount = configuration.GetValue<int>("MatchSize");
+                        var res = await db.ScriptEvaluateAsync(
+                            LuaScripts.LPopNItemsIfExist,
+                            keys: [MatchMakingWorkerRedisKeys.WaitingRequests],
+                            values: [matchUsersCount.ToString()]
+                        );
+                        if (res.IsNull)
+                        {
+                            break;
+                        }
+
+                        var result = (RedisResult[])res!;
+
+                        var matchId = Guid.NewGuid().ToString();
+                        var completeMessage =
+                            new MatchMakingCompleteMessage(matchId, result.Select(x => x.ToString()).ToArray());
+
+                        logger.LogInformation("Match completed: {MatchCompleteMessage}", completeMessage);
+
+                        await matchCompleteProducer.ProduceAsync(
+                            KafkaTopics.KafkaCompleteTopic,
+                            new Message<Null, MatchMakingCompleteMessage>
+                            {
+                                Value = completeMessage
+                            }, stoppingToken);
+                    }
+                }
+                catch (ConsumeException ex)
+                {
+                    logger.LogError(ex, $"Kafka error: {ex.Error}");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Unexpected error processing match complete message.");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("MatchMakingRequestConsumer is stopping.");
+            matchRequestConsumer.Close();
+        }
+    }
+
+    private IConsumer<Ignore, MatchMakingRequestMessage> SubscribeConsumer(IConfiguration c)
+    {
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = c["Kafka:BootstrapServers"],
+            GroupId = "matchmaking-worker-group",
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+        };
+        var consumer = new ConsumerBuilder<Ignore, MatchMakingRequestMessage>(config)
+            .SetValueDeserializer(new KafkaJsonDeserializer<MatchMakingRequestMessage>())
+            .Build();
+
+        consumer.Subscribe(KafkaTopics.KafkaRequestTopic);
+        return consumer;
+    }
+
+    private IProducer<Null, MatchMakingCompleteMessage> CreateProducer(IConfiguration c)
+    {
+        var config = new ProducerConfig
+        {
+            BootstrapServers = c["Kafka:BootstrapServers"]
+        };
+        return new ProducerBuilder<Null, MatchMakingCompleteMessage>(config)
+            .SetValueSerializer(new KafkaJsonSerializer<MatchMakingCompleteMessage>())
+            .Build();
+    }
+}
