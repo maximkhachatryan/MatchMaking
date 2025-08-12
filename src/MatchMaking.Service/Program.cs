@@ -1,14 +1,15 @@
 using Confluent.Kafka;
+using MatchMaking.Service.Consumers;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddHostedService<MatchMakingCompleteConsumer>();
 builder.Services.AddControllers();
-// builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-// {
-//     var configuration = builder.Configuration.GetValue<string>("Redis:ConnectionString")!;
-//     return ConnectionMultiplexer.Connect(configuration);
-// });
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+{
+    var configuration = builder.Configuration.GetValue<string>("Redis:ConnectionString")!;
+    return ConnectionMultiplexer.Connect(configuration);
+});
 
 var kafkaConfig = new ProducerConfig
 {

@@ -11,12 +11,12 @@ namespace MatchMaking.Service.Controllers;
 [Route("matchmaking")]
 public class MatchMakingController : ControllerBase
 {
-    //private readonly IDatabase _redisDb;
+    private readonly IDatabase _redisDb;
     private readonly IProducer<Null, string> _kafkaProducer;
 
-    public MatchMakingController(/*IConnectionMultiplexer redis,*/ IProducer<Null, string> kafkaProducer)
+    public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer)
     {
-        //_redisDb = redis.GetDatabase();
+        _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
     }
 
@@ -38,14 +38,28 @@ public class MatchMakingController : ControllerBase
         }
         catch (Exception ex)
         {
-            // Log exception as needed
             return StatusCode(500, $"Error sending message: {ex.Message}");
         }
     }
-
-    [HttpGet("matchinfo")]
-    public async Task<IActionResult> RetrieveMatchInformation([FromQuery] string userId)
+    
+    [HttpGet("matchinfo/userId/{userId}")]
+    public async Task<IActionResult> RetrieveMatchInformation([FromRoute] string userId)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(userId))
+            return BadRequest("userId is required.");
+
+        var matchId = await _redisDb.HashGetAsync("user_match_map", userId);
+        if (matchId.IsNullOrEmpty)
+            return NotFound();
+
+        var userIds = await _redisDb.ListRangeAsync($"match:{matchId}:users");
+
+        var response = new
+        {
+            matchId = matchId.ToString(),
+            userIds = userIds.Select(u => u.ToString()).ToList()
+        };
+
+        return Ok(response);
     }
 }
