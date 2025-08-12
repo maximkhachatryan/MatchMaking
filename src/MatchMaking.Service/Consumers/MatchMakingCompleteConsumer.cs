@@ -2,6 +2,7 @@ using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
 using MatchMaking.Common.Serialization;
+using MatchMaking.Service.Constants;
 using StackExchange.Redis;
 
 namespace MatchMaking.Service.Consumers;
@@ -10,7 +11,6 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("MatchMakingCompleteConsumer started.");
         
         using var matchCompleteConsumer = SubscribeConsumer(configuration);
 
@@ -18,8 +18,6 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(1000, stoppingToken);
-                logger.LogInformation("MatchMakingCompleteConsumer running...");
                 try
                 {
                     var consumerResult = matchCompleteConsumer.Consume(stoppingToken);
@@ -28,18 +26,17 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
 
                     var db = redis.GetDatabase();
                     var hashEntries = message.UserIds.Select(uid => new HashEntry(uid, message.MatchId)).ToArray();
-                    await db.HashSetAsync("user_match_map", hashEntries);
+                    await db.HashSetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, hashEntries);
 
-                    var matchUsersKey = $"match:{message.MatchId}:users";
+                    var matchUsersKey = string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, message.MatchId);
 
                     var redisUserIds = message.UserIds.Select(u => (RedisValue)u).ToArray();
                     await db.ListRightPushAsync(matchUsersKey, redisUserIds);
                     
-                    await db.SetRemoveAsync("waiting:users", redisUserIds);
+                    await db.SetRemoveAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, redisUserIds);
                 }
                 catch (ConsumeException ex)
                 {
-                    logger.LogInformation("MatchMakingCompleteConsumer stopping due to cancellation.");
                     Console.WriteLine($"Kafka error: {ex.Error.Reason}");
                 }
             }

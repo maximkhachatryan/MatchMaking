@@ -7,25 +7,25 @@ using StackExchange.Redis;
 
 namespace MatchMaking.Worker.Consumers;
 
-public class MatchMakingRequestConsumer(IConfiguration configuration) : BackgroundService
+public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<MatchMakingRequestConsumer> logger)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var redisConnString = configuration["Redis:ConnectionString"]!;
-        var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
-
         using var matchRequestConsumer = SubscribeConsumer(configuration);
         using var matchCompleteProducer = CreateProducer(configuration);
-
         try
         {
+            var redisConnString = configuration["Redis:ConnectionString"]!;
+            var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
+            
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     var consumerResult = matchRequestConsumer.Consume(stoppingToken);
                     var message = consumerResult.Message.Value;
-                    Console.WriteLine($"Received message with userId: {message.UserId}");
+                    logger.LogInformation($"Received message with userId: {message.UserId}");
 
                     var db = redis.GetDatabase();
                     await db.ListRightPushAsync("matchmaking.worker.waitingUsers", message.UserId);
@@ -44,14 +44,15 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
                         {
                             break;
                         }
+
                         var result = (RedisResult[])res!;
 
                         var matchId = Guid.NewGuid().ToString();
                         var completeMessage =
-                            new MatchMakingCompleteMessage(matchId, result.Select(x=>x.ToString()).ToArray());
+                            new MatchMakingCompleteMessage(matchId, result.Select(x => x.ToString()).ToArray());
 
                         Console.WriteLine(completeMessage);
-                        
+
                         await matchCompleteProducer.ProduceAsync(
                             KafkaTopics.KafkaCompleteTopic,
                             new Message<Null, MatchMakingCompleteMessage>
@@ -62,13 +63,17 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
                 }
                 catch (ConsumeException ex)
                 {
-                    Console.WriteLine($"Kafka error: {ex.Error.Reason}");
+                    logger.LogError($"Kafka error: {ex.Error.Reason}");
                 }
             }
         }
         catch (OperationCanceledException)
         {
             matchRequestConsumer.Close();
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error occured");
         }
     }
 
@@ -87,7 +92,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration) : Backgrou
         consumer.Subscribe(KafkaTopics.KafkaRequestTopic);
         return consumer;
     }
-    
+
     private IProducer<Null, MatchMakingCompleteMessage> CreateProducer(IConfiguration c)
     {
         var config = new ProducerConfig

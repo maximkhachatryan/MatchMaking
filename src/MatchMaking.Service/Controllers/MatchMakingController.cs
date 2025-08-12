@@ -2,6 +2,7 @@ using System.Text.Json;
 using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
+using MatchMaking.Service.Constants;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 
@@ -27,7 +28,7 @@ public class MatchMakingController : ControllerBase
             return BadRequest("userId is required.");
         try
         {
-            var isWaiting = await _redisDb.SetContainsAsync("waiting:users", userId);
+            var isWaiting = await _redisDb.SetContainsAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
             if (isWaiting)
                 return BadRequest("User has already sent a request and waiting for a match");
 
@@ -35,7 +36,7 @@ public class MatchMakingController : ControllerBase
             var message = new Message<Null, string> { Value = messagePayload };
             await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
 
-            await _redisDb.SetAddAsync("waiting:users", userId);
+            await _redisDb.SetAddAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
 
             return NoContent();
         }
@@ -51,11 +52,12 @@ public class MatchMakingController : ControllerBase
         if (string.IsNullOrWhiteSpace(userId))
             return BadRequest("userId is required.");
 
-        var matchId = await _redisDb.HashGetAsync("user_match_map", userId);
+        var matchId = await _redisDb.HashGetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, userId);
         if (matchId.IsNullOrEmpty)
             return NotFound();
 
-        var userIds = await _redisDb.ListRangeAsync($"match:{matchId}:users");
+        var userIds =
+            await _redisDb.ListRangeAsync(string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, matchId));
 
         var response = new
         {
