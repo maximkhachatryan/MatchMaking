@@ -28,7 +28,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                     logger.LogInformation($"Received message with userId: {message.UserId}");
 
                     var db = redis.GetDatabase();
-                    await db.ListRightPushAsync("matchmaking.worker.waitingUsers", message.UserId);
+                    await db.ListRightPushAsync(MatchMakingWorkerRedisKeys.WaitingRequests, message.UserId);
 
 
                     while (true)
@@ -37,7 +37,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                         var matchUsersCount = configuration.GetValue<int>("MatchSize");
                         var res = await db.ScriptEvaluateAsync(
                             LuaScripts.LPopNItemsIfExist,
-                            keys: [Constants.Constants.RedisKeyWaitingUsers],
+                            keys: [MatchMakingWorkerRedisKeys.WaitingRequests],
                             values: [matchUsersCount.ToString()]
                         );
                         if (res.IsNull)
