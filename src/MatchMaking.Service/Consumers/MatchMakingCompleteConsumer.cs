@@ -7,11 +7,13 @@ using StackExchange.Redis;
 
 namespace MatchMaking.Service.Consumers;
 
-public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnectionMultiplexer redis, ILogger<MatchMakingCompleteConsumer> logger) : BackgroundService
+public class MatchMakingCompleteConsumer(
+    IConfiguration configuration,
+    IConnectionMultiplexer redis,
+    ILogger<MatchMakingCompleteConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        
         using var matchCompleteConsumer = SubscribeConsumer(configuration);
 
         try
@@ -20,9 +22,15 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
             {
                 try
                 {
-                    var consumerResult = matchCompleteConsumer.Consume(stoppingToken);
+                    var consumerResult = matchCompleteConsumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (consumerResult == null)
+                    {
+                        await Task.Delay(50, stoppingToken);
+                        continue;
+                    }
+
                     var message = consumerResult.Message.Value;
-                    Console.WriteLine($"Received complete message: {message}");
+                    logger.LogInformation($"Received match: Id = {message.MatchId}, UserIds = {string.Join(",", message.UserIds)}");
 
                     var db = redis.GetDatabase();
                     var hashEntries = message.UserIds.Select(uid => new HashEntry(uid, message.MatchId)).ToArray();
@@ -32,7 +40,6 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
 
                     var redisUserIds = message.UserIds.Select(u => (RedisValue)u).ToArray();
                     await db.ListRightPushAsync(matchUsersKey, redisUserIds);
-                    
                     await db.SetRemoveAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, redisUserIds);
                 }
                 catch (ConsumeException ex)
