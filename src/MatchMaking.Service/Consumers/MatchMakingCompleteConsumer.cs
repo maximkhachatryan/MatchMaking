@@ -34,6 +34,8 @@ public class MatchMakingCompleteConsumer(IConfiguration configuration, IConnecti
 
                     var redisUserIds = message.UserIds.Select(u => (RedisValue)u).ToArray();
                     await db.ListRightPushAsync(matchUsersKey, redisUserIds);
+                    
+                    await db.SetRemoveAsync("waiting:users", redisUserIds);
                 }
                 catch (ConsumeException ex)
                 {

@@ -34,6 +34,9 @@ public class MatchMakingController : ControllerBase
         {
             var message = new Message<Null, string> { Value = messagePayload };
             await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
+            
+            await _redisDb.SetAddAsync("waiting:users", userId);
+
             return Ok(new { Status = "Message sent"});
         }
         catch (Exception ex)
