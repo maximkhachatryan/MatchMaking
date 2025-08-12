@@ -26,6 +26,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       restart: unless-stopped
 
   kafka-ui:
@@ -68,12 +69,9 @@ services:
       dockerfile: src/MatchMaking.Worker/Dockerfile
     container_name: matchmaking-worker-1
     depends_on:
-      zookeeper:
-        condition: service_started
-      kafka:
-        condition: service_started
-      redis:
-        condition: service_started
+      - zookeeper
+      - kafka
+      - redis
     restart: unless-stopped
 
   matchmaking-worker-2:
@@ -82,12 +80,9 @@ services:
       dockerfile: src/MatchMaking.Worker/Dockerfile
     container_name: matchmaking-worker-2
     depends_on:
-      zookeeper:
-        condition: service_started
-      kafka:
-        condition: service_started
-      redis:
-        condition: service_started
+      - zookeeper
+      - kafka
+      - redis
     restart: unless-stopped
     
   matchmaking-service-1:
@@ -95,13 +90,16 @@ services:
       context: .
       dockerfile: src/MatchMaking.Service/Dockerfile
     container_name: matchmaking-service-1
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - DOTNET_RUNNING_IN_CONTAINER=true
+      - DOTNET_USE_POLLING_FILE_WATCHER=true
     depends_on:
-      zookeeper:
-        condition: service_started
-      kafka:
-        condition: service_started
-      redis:
-        condition: service_started
+      - zookeeper
+      - kafka
+      - redis
     restart: unless-stopped
 
 volumes:

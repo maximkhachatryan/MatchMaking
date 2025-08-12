@@ -9,7 +9,7 @@ using StackExchange.Redis;
 namespace MatchMaking.Service.Controllers;
 
 [ApiController]
-[Route("matchmaking")]
+[Route("api/matchmaking")]
 public class MatchMakingController : ControllerBase
 {
     private readonly IDatabase _redisDb;
