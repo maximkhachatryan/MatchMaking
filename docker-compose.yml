@@ -62,11 +62,11 @@ services:
       - redis
     restart: unless-stopped
     
-  matchmaking-worker:
+  matchmaking-worker-1:
     build:
       context: .
       dockerfile: src/MatchMaking.Worker/Dockerfile
-    container_name: matchmaking-worker
+    container_name: matchmaking-worker-1
     depends_on:
       zookeeper:
         condition: service_started
@@ -76,6 +76,33 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  matchmaking-worker-2:
+    build:
+      context: .
+      dockerfile: src/MatchMaking.Worker/Dockerfile
+    container_name: matchmaking-worker-2
+    depends_on:
+      zookeeper:
+        condition: service_started
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    
+  matchmaking-service-1:
+    build:
+      context: .
+      dockerfile: src/MatchMaking.Service/Dockerfile
+    container_name: matchmaking-service-1
+    depends_on:
+      zookeeper:
+        condition: service_started
+      kafka:
+        condition: service_started
+      redis:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   redis-data:
