@@ -57,7 +57,7 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                         var completeMessage =
                             new MatchMakingCompleteMessage(matchId, result.Select(x => x.ToString()).ToArray());
 
-                        Console.WriteLine(completeMessage);
+                        logger.LogInformation("Match completed: {MatchCompleteMessage}", completeMessage);
 
                         await matchCompleteProducer.ProduceAsync(
                             KafkaTopics.KafkaCompleteTopic,
@@ -69,12 +69,13 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                 }
                 catch (ConsumeException ex)
                 {
-                    logger.LogError($"Kafka error: {ex.Error.Reason}");
+                    logger.LogError(ex, $"Kafka error: {ex.Error}");
                 }
             }
         }
         catch (OperationCanceledException)
         {
+            logger.LogInformation("MatchMakingRequestConsumer is stopping.");
             matchRequestConsumer.Close();
         }
         catch (Exception e)
