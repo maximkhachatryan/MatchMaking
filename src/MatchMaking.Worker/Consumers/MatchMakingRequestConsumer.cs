@@ -18,12 +18,18 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
         {
             var redisConnString = configuration["Redis:ConnectionString"]!;
             var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
-            
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
-                    var consumerResult = matchRequestConsumer.Consume(stoppingToken);
+                    var consumerResult = matchRequestConsumer.Consume(TimeSpan.FromMilliseconds(100));
+                    if (consumerResult == null)
+                    {
+                        await Task.Delay(50, stoppingToken);
+                        continue;
+                    }
+
                     var message = consumerResult.Message.Value;
                     logger.LogInformation($"Received message with userId: {message.UserId}");
 
