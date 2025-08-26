@@ -2,14 +2,13 @@ using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
 using MatchMaking.Common.Serialization;
-using MatchMaking.Service.Constants;
-using StackExchange.Redis;
+using MatchMaking.Service.BL.Abstraction.Services;
 
 namespace MatchMaking.Service.Consumers;
 
 public class MatchMakingCompleteConsumer(
     IConfiguration configuration,
-    IConnectionMultiplexer redis,
+    IMatchCompleteHandlerService matchCompleteHandlerService,
     ILogger<MatchMakingCompleteConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,13 +31,8 @@ public class MatchMakingCompleteConsumer(
                     var message = consumerResult.Message.Value;
                     logger.LogInformation($"Received match: Id = {message.MatchId}, UserIds = {string.Join(",", message.UserIds)}");
 
-                    var db = redis.GetDatabase();
-                    var hashEntries = message.UserIds.Select(uid => new HashEntry(uid, message.MatchId)).ToArray();
-                    await db.HashSetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, hashEntries);
-                    var matchUsersKey = string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, message.MatchId);
-                    var redisUserIds = message.UserIds.Select(u => (RedisValue)u).ToArray();
-                    await db.ListRightPushAsync(matchUsersKey, redisUserIds);
-                    await db.SetRemoveAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, redisUserIds);
+                    await matchCompleteHandlerService.HandleMatchCompleteAsync(message, stoppingToken);
+                    
                 }
                 catch (ConsumeException ex)
                 {

@@ -2,7 +2,8 @@ using System.Text.Json;
 using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
-using MatchMaking.Service.Constants;
+using MatchMaking.Service.BL.Abstraction.Services;
+using MatchMaking.Service.BL.Constants;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 
@@ -14,57 +15,53 @@ public class MatchMakingController : ControllerBase
 {
     private readonly IDatabase _redisDb;
     private readonly IProducer<Null, string> _kafkaProducer;
+    private readonly IMatchMakingService _matchMakingService;
 
-    public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer)
+    public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer, IMatchMakingService matchMakingService)
     {
         _redisDb = redis.GetDatabase();
         _kafkaProducer = kafkaProducer;
+        _matchMakingService = matchMakingService;
     }
 
     [HttpPost("search/{userId}")]
     public async Task<IActionResult> MatchSearchRequest([FromRoute] string userId)
     {
-        if (string.IsNullOrWhiteSpace(userId))
-            return BadRequest("userId is required.");
+        //TODO: Would be better to implement custom exception handling middleware.
         try
         {
-            var isWaiting = await _redisDb.SetContainsAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
-            if (isWaiting)
-                return BadRequest("User has already sent a request and waiting for a match");
-
-            var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
-            var message = new Message<Null, string> { Value = messagePayload };
-            await _kafkaProducer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
-
-            await _redisDb.SetAddAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
-
-            return NoContent();
+            await _matchMakingService.SearchMatch(userId);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (ApplicationException ex)
         {
             return StatusCode(500, $"Error sending message: {ex.Message}");
         }
+        return NoContent();
     }
 
     [HttpGet("matchinfo/userId/{userId}")]
     public async Task<IActionResult> RetrieveMatchInformation([FromRoute] string userId)
     {
-        if (string.IsNullOrWhiteSpace(userId))
-            return BadRequest("userId is required.");
-
-        var matchId = await _redisDb.HashGetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, userId);
-        if (matchId.IsNullOrEmpty)
-            return NotFound();
-
-        var userIds =
-            await _redisDb.ListRangeAsync(string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, matchId));
-
-        var response = new
+        try
         {
-            matchId = matchId.ToString(),
-            userIds = userIds.Select(u => u.ToString()).ToList()
-        };
-
-        return Ok(response);
+            var response = await _matchMakingService.RetrieveMatchInformation(userId);
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (ApplicationException ex)
+        {
+            return StatusCode(500, $"Error sending message: {ex.Message}");
+        }
     }
 }

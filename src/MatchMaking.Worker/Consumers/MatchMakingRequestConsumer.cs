@@ -3,8 +3,6 @@ using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
 using MatchMaking.Common.Serialization;
 using MatchMaking.Worker.BL.Abstraction.Services;
-using MatchMaking.Worker.BL.Constants;
-using StackExchange.Redis;
 
 namespace MatchMaking.Worker.Consumers;
 

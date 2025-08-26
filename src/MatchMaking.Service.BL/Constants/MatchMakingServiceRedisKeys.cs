@@ -1,4 +1,4 @@
-namespace MatchMaking.Service.Constants;
+namespace MatchMaking.Service.BL.Constants;
 
 public static class MatchMakingServiceRedisKeys
 {
