@@ -31,7 +31,9 @@ public class MatchMakingService(
             var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
             var message = new Message<Null, string> { Value = messagePayload };
             await producer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
-
+            
+            //Register user as waiting user to not allow to request for a new match,
+            //while the match is not yet constructed 
             await serviceRepository.RegisterWaitingUser(userId);
         }
         catch (InvalidOperationException)
