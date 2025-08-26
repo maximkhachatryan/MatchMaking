@@ -2,58 +2,39 @@ using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
 using MatchMaking.Worker.BL.Abstraction.Services;
-using MatchMaking.Worker.BL.Constants;
+using MatchMaking.Worker.DAL.Abstraction.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 
 namespace MatchMaking.Worker.BL.Services;
 
-public class MatchMakingProcessorProcessorService : IMatchMakingProcessorService
+public class MatchMakingProcessorProcessorService(
+    ILogger<MatchMakingProcessorProcessorService> logger,
+    IWorkerRepository repository,
+    IConfiguration configuration,
+    IProducer<Null, MatchMakingCompleteMessage> producer)
+    : IMatchMakingProcessorService
 {
-    private readonly ILogger<MatchMakingProcessorProcessorService> _logger;
-    private readonly IDatabase _db;
-    private readonly int _matchSize;
-    private readonly IProducer<Null, MatchMakingCompleteMessage> _producer;
-
-    public MatchMakingProcessorProcessorService(
-        ILogger<MatchMakingProcessorProcessorService> logger,
-        IConnectionMultiplexer redis,
-        IConfiguration configuration,
-        IProducer<Null, MatchMakingCompleteMessage> producer)
-    {
-        _logger = logger;
-        _db = redis.GetDatabase();
-        _matchSize = configuration.GetValue<int>("MatchSize");
-        _producer = producer;
-    }
+    private readonly int _matchSize = configuration.GetValue<int>("MatchSize");
 
     public async Task ProcessRequestAsync(MatchMakingRequestMessage message, CancellationToken ct)
     {
-        await _db.ListRightPushAsync(MatchMakingWorkerRedisKeys.WaitingRequests, message.UserId);
-
+        await repository.LineUpUser(message.UserId);
+        
+        //Making Matches while relevant number of waiting users exist
         while (true)
         {
-            //Used Lua script to check count and pop n items in atomic way
-            var res = await _db.ScriptEvaluateAsync(
-                LuaScripts.LPopNItemsIfExist,
-                keys: [MatchMakingWorkerRedisKeys.WaitingRequests],
-                values: [_matchSize.ToString()]
-            );
-
-            if (res.IsNull)
+            //Popping exactly n (n=_matchSize) users from database if exist in atomic way.
+            var poppedUserIds = await repository.PopUsers(_matchSize);
+            if (poppedUserIds == null)
                 return;
 
-            var result = (RedisResult[])res!;
             var matchId = Guid.NewGuid().ToString();
-            var completeMessage = new MatchMakingCompleteMessage(
-                matchId,
-                result.Select(x => x.ToString()).ToArray()
-            );
+            var completeMessage = new MatchMakingCompleteMessage(matchId, poppedUserIds);
 
-            _logger.LogInformation("Match completed: {MatchCompleteMessage}", completeMessage);
+            logger.LogInformation("Match completed: {MatchCompleteMessage}", completeMessage);
 
-            await _producer.ProduceAsync(
+            await producer.ProduceAsync(
                 KafkaTopics.KafkaCompleteTopic,
                 new Message<Null, MatchMakingCompleteMessage> { Value = completeMessage },
                 ct

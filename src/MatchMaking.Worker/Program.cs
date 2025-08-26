@@ -4,6 +4,8 @@ using MatchMaking.Common.Serialization;
 using MatchMaking.Worker.BL.Abstraction.Services;
 using MatchMaking.Worker.BL.Services;
 using MatchMaking.Worker.Consumers;
+using MatchMaking.Worker.DAL.Abstraction.Repositories;
+using MatchMaking.Worker.DAL.Repositories;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +26,7 @@ builder.Services.AddSingleton<IProducer<Null, MatchMakingCompleteMessage>>(sp =>
         .Build();
 });
 
+builder.Services.AddSingleton<IWorkerRepository, WorkerRepository>();
 builder.Services.AddSingleton<IMatchMakingProcessorService, MatchMakingProcessorProcessorService>();
 builder.Services.AddHostedService<MatchMakingRequestConsumer>();
 var app = builder.Build();

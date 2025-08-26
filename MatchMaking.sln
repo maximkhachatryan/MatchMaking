@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Worker.BL", "sr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Service.BL", "src\MatchMaking.Service.BL\MatchMaking.Service.BL.csproj", "{AB075110-5C6D-442F-BDAF-2277E7D30F18}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Worker.DAL", "src\MatchMaking.Worker.DAL\MatchMaking.Worker.DAL.csproj", "{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +38,9 @@ Global
 		{AB075110-5C6D-442F-BDAF-2277E7D30F18}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AB075110-5C6D-442F-BDAF-2277E7D30F18}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AB075110-5C6D-442F-BDAF-2277E7D30F18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

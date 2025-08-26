@@ -1,4 +1,4 @@
-namespace MatchMaking.Worker.BL.Constants;
+namespace MatchMaking.Worker.DAL.Constants;
 
 public static class MatchMakingWorkerRedisKeys
 {
