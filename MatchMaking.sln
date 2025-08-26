@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Service.BL", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Worker.DAL", "src\MatchMaking.Worker.DAL\MatchMaking.Worker.DAL.csproj", "{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MatchMaking.Service.DAL", "src\MatchMaking.Service.DAL\MatchMaking.Service.DAL.csproj", "{FC0A8375-134C-42AD-BF71-48633B990FB8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1693C6E7-A090-49F6-9AD7-506D4D65AB0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC0A8375-134C-42AD-BF71-48633B990FB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC0A8375-134C-42AD-BF71-48633B990FB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC0A8375-134C-42AD-BF71-48633B990FB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC0A8375-134C-42AD-BF71-48633B990FB8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

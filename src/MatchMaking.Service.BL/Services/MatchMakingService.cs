@@ -5,42 +5,34 @@ using MatchMaking.Common.Messages;
 using MatchMaking.Service.BL.Abstraction.Services;
 using MatchMaking.Service.BL.Constants;
 using MatchMaking.Service.BL.Models;
+using MatchMaking.Service.DAL.Abstraction.Repositories;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
 namespace MatchMaking.Service.BL.Services;
 
-public class MatchMakingService : IMatchMakingService
+public class MatchMakingService(
+    ILogger<MatchMakingService> logger,
+    IProducer<Null, string> producer,
+    IServiceRepository serviceRepository)
+    : IMatchMakingService
 {
-    private readonly ILogger<MatchMakingService> _logger;
-    private readonly IDatabase _db;
-    private readonly IProducer<Null, string> _producer;
-
-    public MatchMakingService(
-        ILogger<MatchMakingService> logger,
-        IConnectionMultiplexer redis,
-        IProducer<Null, string> producer)
-    {
-        _logger = logger;
-        _db = redis.GetDatabase();
-        _producer = producer;
-    }
-
     public async Task SearchMatch(string userId)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(userId))
                 throw new InvalidOperationException("UserId is required.");
-            var isWaiting = await _db.SetContainsAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
+
+            var isWaiting = await serviceRepository.CheckUserIsWaiting(userId);
             if (isWaiting)
                 throw new InvalidOperationException("User has already sent a request and waiting for a match");
 
             var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
             var message = new Message<Null, string> { Value = messagePayload };
-            await _producer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
+            await producer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
 
-            await _db.SetAddAsync(MatchMakingServiceRedisKeys.WaitingUsersSetKey, userId);
+            await serviceRepository.RegisterWaitingUser(userId);
         }
         catch (InvalidOperationException)
         {
@@ -59,15 +51,14 @@ public class MatchMakingService : IMatchMakingService
             if (string.IsNullOrWhiteSpace(userId))
                 throw new InvalidOperationException("UserId is required.");
 
-            var matchId = await _db.HashGetAsync(MatchMakingServiceRedisKeys.UserMatchHashKey, userId);
-            if (matchId.IsNullOrEmpty)
+            var matchId = await serviceRepository.FindMatchIdByUserId(userId);
+            if (matchId == null)
                 throw new KeyNotFoundException($"No match found for user with id {userId}");
 
-            var userIds =
-                await _db.ListRangeAsync(string.Format(MatchMakingServiceRedisKeys.MatchUsersListKey, matchId));
+            var userIds = await serviceRepository.GetMatchDetails(matchId);
 
             var response = new MatchDto(
-                matchId.ToString(),
+                matchId,
                 userIds.Select(u => u.ToString()).ToList()
             );
 
@@ -83,7 +74,7 @@ public class MatchMakingService : IMatchMakingService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
+            logger.LogError(ex, ex.Message);
             throw new ApplicationException("Error while sending matchinfo request", ex);
         }
     }

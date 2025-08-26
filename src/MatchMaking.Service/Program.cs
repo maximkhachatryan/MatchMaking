@@ -2,6 +2,8 @@ using Confluent.Kafka;
 using MatchMaking.Service.BL.Abstraction.Services;
 using MatchMaking.Service.BL.Services;
 using MatchMaking.Service.Consumers;
+using MatchMaking.Service.DAL.Abstraction.Repositories;
+using MatchMaking.Service.DAL.Repositories;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,7 @@ var kafkaConfig = new ProducerConfig
 
 builder.Services.AddSingleton<IProducer<Null, string>>(_ => new ProducerBuilder<Null, string>(kafkaConfig).Build());
 
+builder.Services.AddSingleton<IServiceRepository, ServiceRepository>();
 builder.Services.AddSingleton<IMatchCompleteHandlerService, MatchCompleteHandlerService>();
 builder.Services.AddScoped<IMatchMakingService, MatchMakingService>();
 var app = builder.Build();
