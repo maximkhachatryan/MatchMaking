@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 
 namespace MatchMaking.Worker.BL.Services;
 
-public class MatchMakingProcessorProcessorService(
-    ILogger<MatchMakingProcessorProcessorService> logger,
+public class MatchMakingProcessorService(
+    ILogger<MatchMakingProcessorService> logger,
     IWorkerRepository repository,
     IConfiguration configuration,
     IProducer<Null, MatchMakingCompleteMessage> producer)
@@ -25,6 +25,7 @@ public class MatchMakingProcessorProcessorService(
         while (true)
         {
             //Popping exactly n (n=_matchSize) users from database if exist in atomic way.
+            //This kind of atomicity guarantees refusing concurrency issues while processing in distributed services
             var poppedUserIds = await repository.PopUsers(_matchSize);
             if (poppedUserIds == null)
                 return;

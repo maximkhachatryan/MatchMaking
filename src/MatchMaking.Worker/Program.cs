@@ -27,7 +27,7 @@ builder.Services.AddSingleton<IProducer<Null, MatchMakingCompleteMessage>>(sp =>
 });
 
 builder.Services.AddSingleton<IWorkerRepository, WorkerRepository>();
-builder.Services.AddSingleton<IMatchMakingProcessorService, MatchMakingProcessorProcessorService>();
+builder.Services.AddSingleton<IMatchMakingProcessorService, MatchMakingProcessorService>();
 builder.Services.AddHostedService<MatchMakingRequestConsumer>();
 var app = builder.Build();
 app.Run();

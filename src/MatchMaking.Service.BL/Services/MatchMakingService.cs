@@ -13,7 +13,7 @@ namespace MatchMaking.Service.BL.Services;
 
 public class MatchMakingService(
     ILogger<MatchMakingService> logger,
-    IProducer<Null, string> producer,
+    IProducer<Null, MatchMakingRequestMessage> producer,
     IServiceRepository serviceRepository)
     : IMatchMakingService
 {
@@ -28,10 +28,9 @@ public class MatchMakingService(
             if (isWaiting)
                 throw new InvalidOperationException("User has already sent a request and waiting for a match");
 
-            var messagePayload = JsonSerializer.Serialize(new MatchMakingRequestMessage(userId));
-            var message = new Message<Null, string> { Value = messagePayload };
-            await producer.ProduceAsync(KafkaTopics.KafkaRequestTopic, message);
-            
+            await producer.ProduceAsync(KafkaTopics.KafkaRequestTopic,
+                new Message<Null, MatchMakingRequestMessage> { Value = new MatchMakingRequestMessage(userId) });
+
             //Register user as waiting user to not allow to request for a new match,
             //while the match is not yet constructed 
             await serviceRepository.RegisterWaitingUser(userId);

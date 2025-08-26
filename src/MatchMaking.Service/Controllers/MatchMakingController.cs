@@ -11,7 +11,7 @@ public class MatchMakingController : ControllerBase
 {
     private readonly IMatchMakingService _matchMakingService;
 
-    public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer, IMatchMakingService matchMakingService)
+    public MatchMakingController(IMatchMakingService matchMakingService)
     {
         _matchMakingService = matchMakingService;
     }
