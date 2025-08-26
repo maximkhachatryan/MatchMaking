@@ -1,9 +1,5 @@
-using System.Text.Json;
 using Confluent.Kafka;
-using MatchMaking.Common.Constants;
-using MatchMaking.Common.Messages;
 using MatchMaking.Service.BL.Abstraction.Services;
-using MatchMaking.Service.BL.Constants;
 using Microsoft.AspNetCore.Mvc;
 using StackExchange.Redis;
 
@@ -13,14 +9,10 @@ namespace MatchMaking.Service.Controllers;
 [Route("api/matchmaking")]
 public class MatchMakingController : ControllerBase
 {
-    private readonly IDatabase _redisDb;
-    private readonly IProducer<Null, string> _kafkaProducer;
     private readonly IMatchMakingService _matchMakingService;
 
     public MatchMakingController(IConnectionMultiplexer redis, IProducer<Null, string> kafkaProducer, IMatchMakingService matchMakingService)
     {
-        _redisDb = redis.GetDatabase();
-        _kafkaProducer = kafkaProducer;
         _matchMakingService = matchMakingService;
     }
 
