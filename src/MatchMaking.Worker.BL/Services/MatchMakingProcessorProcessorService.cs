@@ -9,15 +9,15 @@ using StackExchange.Redis;
 
 namespace MatchMaking.Worker.BL.Services;
 
-public class MatchMakingService : IMatchMakingService
+public class MatchMakingProcessorProcessorService : IMatchMakingProcessorService
 {
-    private readonly ILogger<MatchMakingService> _logger;
+    private readonly ILogger<MatchMakingProcessorProcessorService> _logger;
     private readonly IDatabase _db;
     private readonly int _matchSize;
     private readonly IProducer<Null, MatchMakingCompleteMessage> _producer;
 
-    public MatchMakingService(
-        ILogger<MatchMakingService> logger,
+    public MatchMakingProcessorProcessorService(
+        ILogger<MatchMakingProcessorProcessorService> logger,
         IConnectionMultiplexer redis,
         IConfiguration configuration,
         IProducer<Null, MatchMakingCompleteMessage> producer)
@@ -28,7 +28,7 @@ public class MatchMakingService : IMatchMakingService
         _producer = producer;
     }
 
-    public async Task HandleRequestAsync(MatchMakingRequestMessage message, CancellationToken ct)
+    public async Task ProcessRequestAsync(MatchMakingRequestMessage message, CancellationToken ct)
     {
         await _db.ListRightPushAsync(MatchMakingWorkerRedisKeys.WaitingRequests, message.UserId);
 

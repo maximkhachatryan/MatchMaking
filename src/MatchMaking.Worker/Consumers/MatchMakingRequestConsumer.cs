@@ -9,7 +9,7 @@ namespace MatchMaking.Worker.Consumers;
 public class MatchMakingRequestConsumer(
     IConfiguration configuration,
     ILogger<MatchMakingRequestConsumer> logger,
-    IMatchMakingService matchMakingService)
+    IMatchMakingProcessorService matchMakingProcessorService)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,7 +33,7 @@ public class MatchMakingRequestConsumer(
                     logger.LogInformation($"Received message with userId: {message.UserId}");
 
                     
-                    await matchMakingService.HandleRequestAsync(message, stoppingToken);
+                    await matchMakingProcessorService.ProcessRequestAsync(message, stoppingToken);
                 }
                 catch (ConsumeException ex)
                 {
