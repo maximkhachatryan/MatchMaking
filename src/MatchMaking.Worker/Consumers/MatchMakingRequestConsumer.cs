@@ -20,9 +20,6 @@ public class MatchMakingRequestConsumer(
         
         try
         {
-            var redisConnString = configuration["Redis:ConnectionString"]!;
-            //var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
