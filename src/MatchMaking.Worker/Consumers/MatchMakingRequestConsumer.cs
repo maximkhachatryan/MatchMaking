@@ -2,23 +2,22 @@ using Confluent.Kafka;
 using MatchMaking.Common.Constants;
 using MatchMaking.Common.Messages;
 using MatchMaking.Common.Serialization;
-using MatchMaking.Worker.Constants;
-using StackExchange.Redis;
+using MatchMaking.Worker.BL.Abstraction.Services;
 
 namespace MatchMaking.Worker.Consumers;
 
-public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<MatchMakingRequestConsumer> logger)
+public class MatchMakingRequestConsumer(
+    IConfiguration configuration,
+    ILogger<MatchMakingRequestConsumer> logger,
+    IMatchMakingProcessorService matchMakingProcessorService)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var matchRequestConsumer = SubscribeConsumer(configuration);
-        using var matchCompleteProducer = CreateProducer(configuration);
+        
         try
         {
-            var redisConnString = configuration["Redis:ConnectionString"]!;
-            var redis = await ConnectionMultiplexer.ConnectAsync(redisConnString);
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -33,39 +32,8 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
                     var message = consumerResult.Message.Value;
                     logger.LogInformation($"Received message with userId: {message.UserId}");
 
-                    var db = redis.GetDatabase();
-                    await db.ListRightPushAsync(MatchMakingWorkerRedisKeys.WaitingRequests, message.UserId);
-
-
-                    while (true)
-                    {
-                        //Used Lua script to check count and pop n items in atomic way
-                        var matchUsersCount = configuration.GetValue<int>("MatchSize");
-                        var res = await db.ScriptEvaluateAsync(
-                            LuaScripts.LPopNItemsIfExist,
-                            keys: [MatchMakingWorkerRedisKeys.WaitingRequests],
-                            values: [matchUsersCount.ToString()]
-                        );
-                        if (res.IsNull)
-                        {
-                            break;
-                        }
-
-                        var result = (RedisResult[])res!;
-
-                        var matchId = Guid.NewGuid().ToString();
-                        var completeMessage =
-                            new MatchMakingCompleteMessage(matchId, result.Select(x => x.ToString()).ToArray());
-
-                        logger.LogInformation("Match completed: {MatchCompleteMessage}", completeMessage);
-
-                        await matchCompleteProducer.ProduceAsync(
-                            KafkaTopics.KafkaCompleteTopic,
-                            new Message<Null, MatchMakingCompleteMessage>
-                            {
-                                Value = completeMessage
-                            }, stoppingToken);
-                    }
+                    
+                    await matchMakingProcessorService.ProcessRequestAsync(message, stoppingToken);
                 }
                 catch (ConsumeException ex)
                 {
@@ -98,16 +66,5 @@ public class MatchMakingRequestConsumer(IConfiguration configuration, ILogger<Ma
 
         consumer.Subscribe(KafkaTopics.KafkaRequestTopic);
         return consumer;
-    }
-
-    private IProducer<Null, MatchMakingCompleteMessage> CreateProducer(IConfiguration c)
-    {
-        var config = new ProducerConfig
-        {
-            BootstrapServers = c["Kafka:BootstrapServers"]
-        };
-        return new ProducerBuilder<Null, MatchMakingCompleteMessage>(config)
-            .SetValueSerializer(new KafkaJsonSerializer<MatchMakingCompleteMessage>())
-            .Build();
     }
 }

@@ -1,5 +1,11 @@
 using Confluent.Kafka;
+using MatchMaking.Common.Messages;
+using MatchMaking.Common.Serialization;
+using MatchMaking.Service.BL.Abstraction.Services;
+using MatchMaking.Service.BL.Services;
 using MatchMaking.Service.Consumers;
+using MatchMaking.Service.DAL.Abstraction.Repositories;
+using MatchMaking.Service.DAL.Repositories;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,12 +17,21 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
     return ConnectionMultiplexer.Connect(configuration);
 });
 
-var kafkaConfig = new ProducerConfig
+// register Kafka producer once for app lifetime
+builder.Services.AddSingleton<IProducer<Null, MatchMakingRequestMessage>>(sp =>
 {
-    BootstrapServers = builder.Configuration.GetValue<string>("Kafka:BootstrapServers")
-};
+    var config = new ProducerConfig
+    {
+        BootstrapServers = builder.Configuration["Kafka:BootstrapServers"]
+    };
+    return new ProducerBuilder<Null, MatchMakingRequestMessage>(config)
+        .SetValueSerializer(new KafkaJsonSerializer<MatchMakingRequestMessage>())
+        .Build();
+});
 
-builder.Services.AddSingleton<IProducer<Null, string>>(_ => new ProducerBuilder<Null, string>(kafkaConfig).Build());
+builder.Services.AddSingleton<IServiceRepository, ServiceRepository>();
+builder.Services.AddSingleton<IMatchCompleteHandlerService, MatchCompleteHandlerService>();
+builder.Services.AddScoped<IMatchMakingService, MatchMakingService>();
 var app = builder.Build();
 app.MapControllers();
 

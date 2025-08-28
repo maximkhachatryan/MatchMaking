@@ -15,12 +15,12 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Confluent.Kafka" Version="2.11.0" />
-      <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
+      <PackageReference Include="Confluent.Kafka" Version="2.11.1" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\MatchMaking.Common\MatchMaking.Common.csproj" />
+      <ProjectReference Include="..\MatchMaking.Worker.BL\MatchMaking.Worker.BL.csproj" />
     </ItemGroup>
 
 </Project>

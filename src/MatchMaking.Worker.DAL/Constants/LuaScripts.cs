@@ -1,4 +1,4 @@
-namespace MatchMaking.Worker.Constants;
+namespace MatchMaking.Worker.DAL.Constants;
 
 public static class LuaScripts
 {

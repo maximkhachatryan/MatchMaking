@@ -8,7 +8,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Confluent.Kafka" Version="2.11.1" />
+      <ProjectReference Include="..\MatchMaking.Common\MatchMaking.Common.csproj" />
+      <ProjectReference Include="..\MatchMaking.Service.DAL\MatchMaking.Service.DAL.csproj" />
     </ItemGroup>
 
 </Project>
